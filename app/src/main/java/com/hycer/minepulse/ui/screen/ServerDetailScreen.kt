@@ -417,20 +417,22 @@ fun DashboardTabContent(viewModel: MainViewModel, state: ServerRuntimeState) {
 
         // Online Players Preview
         item {
+            val activeOnlinePlayers = state.onlinePlayerList.filter { it.isOnline }
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = DarkSurface),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("当前在线玩家 (${state.onlinePlayerList.size})", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text("当前在线玩家 (${activeOnlinePlayers.size})", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    if (state.onlinePlayerList.isEmpty()) {
+                    if (activeOnlinePlayers.isEmpty()) {
                         Text("当前暂无玩家在线", fontSize = 13.sp, color = TextTertiary)
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            state.onlinePlayerList.forEach { player ->
+                            activeOnlinePlayers.forEach { player ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -623,15 +625,18 @@ fun PlayersTabContent(viewModel: MainViewModel, state: ServerRuntimeState) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(
                                     onClick = {
-                                        dmPlayer = player
-                                        dmMessage = ""
+                                        if (isOnline) {
+                                            dmPlayer = player
+                                            dmMessage = ""
+                                        }
                                     },
+                                    enabled = isOnline,
                                     modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
                                         Icons.Default.Chat,
                                         contentDescription = "私信",
-                                        tint = if (isOnline) McGreen else TextTertiary,
+                                        tint = if (isOnline) McGreen else TextTertiary.copy(alpha = 0.35f),
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }

@@ -31,6 +31,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val macroList: StateFlow<List<QuickMacro>> = _macroList.asStateFlow()
 
     private var activeRconClient: MinecraftRconClient? = null
+    private val previousOnlinePlayerMap = java.util.concurrent.ConcurrentHashMap<String, Set<String>>()
 
     init {
         loadData()
@@ -371,6 +372,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
         }
+
+        // Check online/offline diffs and fire notifications
+        val previous = previousOnlinePlayerMap[serverId]
+        if (previous != null) {
+            val joined = activeNames - previous
+            val left = previous - activeNames
+
+            val serverName = _serverStatusMap.value[serverId]?.server?.name ?: "服务器"
+            val appCtx = getApplication<Application>().applicationContext
+
+            for (p in joined) {
+                com.hycer.minepulse.service.NotificationHelper.sendPlayerEventNotification(
+                    context = appCtx,
+                    serverName = serverName,
+                    playerName = p,
+                    isJoin = true
+                )
+            }
+
+            for (p in left) {
+                com.hycer.minepulse.service.NotificationHelper.sendPlayerEventNotification(
+                    context = appCtx,
+                    serverName = serverName,
+                    playerName = p,
+                    isJoin = false
+                )
+            }
+        }
+        previousOnlinePlayerMap[serverId] = activeNames
 
         // Merge with repository's historical players
         val history = repository.loadHistoricalPlayers(serverId).toMutableSet()
