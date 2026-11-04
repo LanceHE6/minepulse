@@ -11,7 +11,8 @@ data class ServerItem(
     val pingPort: Int = 20000,
     val rconPort: Int = 25574,
     val rconPassword: String = "",
-    val customIconBase64: String? = null
+    val customIconBase64: String? = null,
+    val notifyPlayerEvents: Boolean = false
 )
 
 data class QuickMacro(
@@ -24,7 +25,8 @@ data class QuickMacro(
 data class PlayerInfo(
     val name: String,
     val uuid: String = generateOfflineUuid(name),
-    val isOnline: Boolean = true
+    val isOnline: Boolean = true,
+    val isBot: Boolean = false
 )
 
 data class TpsHistoryPoint(

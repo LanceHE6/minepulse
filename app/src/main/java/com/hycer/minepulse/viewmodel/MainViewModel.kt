@@ -7,6 +7,7 @@ import com.hycer.minepulse.data.ServerRepository
 import com.hycer.minepulse.model.*
 import com.hycer.minepulse.network.MinecraftPing
 import com.hycer.minepulse.network.MinecraftRconClient
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -374,12 +375,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         // Check online/offline diffs and fire notifications
+        val serverObj = _serverStatusMap.value[serverId]?.server
+        val shouldNotify = serverObj?.notifyPlayerEvents == true
+
         val previous = previousOnlinePlayerMap[serverId]
-        if (previous != null) {
+        if (previous != null && shouldNotify) {
             val joined = activeNames - previous
             val left = previous - activeNames
 
-            val serverName = _serverStatusMap.value[serverId]?.server?.name ?: "服务器"
+            val serverName = serverObj?.name ?: "服务器"
             val appCtx = getApplication<Application>().applicationContext
 
             for (p in joined) {
@@ -408,14 +412,54 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         repository.saveHistoricalPlayers(serverId, history)
 
         // Construct sorted PlayerInfo list: online players first, offline players greyed out
+        val currentKnownBots = _serverStatusMap.value[serverId]?.onlinePlayerList?.filter { it.isBot }?.map { it.name }?.toSet() ?: emptySet()
         val sortedList = history.map { name ->
             PlayerInfo(
                 name = name,
-                isOnline = activeNames.contains(name)
+                isOnline = activeNames.contains(name),
+                isBot = currentKnownBots.contains(name)
             )
         }.sortedWith(compareByDescending<PlayerInfo> { it.isOnline }.thenBy { it.name.lowercase() })
 
         updateServerState(serverId) { it.copy(onlinePlayerList = sortedList) }
+
+        // Asynchronously probe active players with method 2: `/player <name> stop` to identify Carpet fake players
+        if (activeNames.isNotEmpty()) {
+            viewModelScope.launch(Dispatchers.IO) {
+                checkFakePlayers(serverId, activeNames)
+            }
+        }
+    }
+
+    private suspend fun checkFakePlayers(serverId: String, onlineNames: Set<String>) {
+        val client = activeRconClient ?: return
+        val detectedBots = mutableSetOf<String>()
+
+        for (name in onlineNames) {
+            // Send `/player <name> stop`
+            val res = client.executeCommand("player $name stop")
+            res.onSuccess { reply ->
+                val lower = reply.lowercase()
+                // Fake player returns empty or success message; real player returns "unknown or incomplete" or "not a fake player"
+                val isRealPlayerError = lower.contains("unknown or incomplete command") ||
+                        lower.contains("here]") ||
+                        lower.contains("is not a fake player") ||
+                        lower.contains("error") ||
+                        lower.contains("incorrect argument")
+                if (!isRealPlayerError) {
+                    detectedBots.add(name)
+                }
+            }
+        }
+
+        if (detectedBots.isNotEmpty()) {
+            updateServerState(serverId) { current ->
+                val updatedPlayers = current.onlinePlayerList.map { p ->
+                    if (detectedBots.contains(p.name)) p.copy(isBot = true) else p
+                }
+                current.copy(onlinePlayerList = updatedPlayers)
+            }
+        }
     }
 
     private fun appendLog(serverId: String, type: LogType, text: String) {

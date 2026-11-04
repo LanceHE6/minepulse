@@ -29,7 +29,8 @@ class ServerRepository(context: Context) {
                         pingPort = obj.getInt("pingPort"),
                         rconPort = obj.getInt("rconPort"),
                         rconPassword = obj.optString("rconPassword", ""),
-                        customIconBase64 = obj.optString("customIconBase64", null)
+                        customIconBase64 = obj.optString("customIconBase64", null),
+                        notifyPlayerEvents = obj.optBoolean("notifyPlayerEvents", false)
                     )
                 )
             }
@@ -49,6 +50,7 @@ class ServerRepository(context: Context) {
                 put("pingPort", s.pingPort)
                 put("rconPort", s.rconPort)
                 put("rconPassword", s.rconPassword)
+                put("notifyPlayerEvents", s.notifyPlayerEvents)
                 if (s.customIconBase64 != null) {
                     put("customIconBase64", s.customIconBase64)
                 }

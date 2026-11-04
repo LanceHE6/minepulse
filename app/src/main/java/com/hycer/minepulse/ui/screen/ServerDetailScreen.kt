@@ -610,6 +610,22 @@ fun PlayersTabContent(viewModel: MainViewModel, state: ServerRuntimeState) {
                                         fontWeight = FontWeight.SemiBold,
                                         color = if (isOnline) TextPrimary else TextTertiary
                                     )
+                                    if (player.isBot) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(McGreen.copy(alpha = 0.2f))
+                                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                                        ) {
+                                            Text(
+                                                "BOT",
+                                                color = McGreen,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
                                 }
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
@@ -623,20 +639,21 @@ fun PlayersTabContent(viewModel: MainViewModel, state: ServerRuntimeState) {
                             }
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                val canDm = isOnline && !player.isBot
                                 IconButton(
                                     onClick = {
-                                        if (isOnline) {
+                                        if (canDm) {
                                             dmPlayer = player
                                             dmMessage = ""
                                         }
                                     },
-                                    enabled = isOnline,
+                                    enabled = canDm,
                                     modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
                                         Icons.Default.Chat,
                                         contentDescription = "私信",
-                                        tint = if (isOnline) McGreen else TextTertiary.copy(alpha = 0.35f),
+                                        tint = if (canDm) McGreen else TextTertiary.copy(alpha = 0.35f),
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -825,35 +842,63 @@ fun PlayersTabContent(viewModel: MainViewModel, state: ServerRuntimeState) {
                         }
                     }
 
-                    // Row 2: Kick & Ban
+                    // Row 2: Kick & Ban (or Carpet Bot controls)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Button(
-                            onClick = {
-                                confirmAction = Triple("踢出玩家", "kick ${player.name}", "确定要将【${player.name}】踢出服务器吗？")
-                                selectedPlayer = null
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(vertical = 10.dp)
-                        ) {
-                            Text("踢出 Kick", fontSize = 13.sp, color = WarningYellow, fontWeight = FontWeight.SemiBold)
-                        }
+                        if (player.isBot) {
+                            Button(
+                                onClick = {
+                                    confirmAction = Triple("假人下线", "player ${player.name} kill", "确定要让假人【${player.name}】下线退出游戏吗？")
+                                    selectedPlayer = null
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 10.dp)
+                            ) {
+                                Text("下线 Kill", fontSize = 13.sp, color = WarningYellow, fontWeight = FontWeight.SemiBold)
+                            }
 
-                        Button(
-                            onClick = {
-                                confirmAction = Triple("封禁玩家", "ban ${player.name}", "确定要永久封禁【${player.name}】吗？该操作将拉黑其玩家账号。")
-                                selectedPlayer = null
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(vertical = 10.dp)
-                        ) {
-                            Text("封禁 Ban", fontSize = 13.sp, color = ErrorRed, fontWeight = FontWeight.SemiBold)
+                            Button(
+                                onClick = {
+                                    confirmAction = Triple("停止假人动作", "player ${player.name} stop", "确定要让假人【${player.name}】停止当前所有动作吗？")
+                                    selectedPlayer = null
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 10.dp)
+                            ) {
+                                Text("停止动作", fontSize = 13.sp, color = McGreen, fontWeight = FontWeight.SemiBold)
+                            }
+                        } else {
+                            Button(
+                                onClick = {
+                                    confirmAction = Triple("踢出玩家", "kick ${player.name}", "确定要将【${player.name}】踢出服务器吗？")
+                                    selectedPlayer = null
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 10.dp)
+                            ) {
+                                Text("踢出 Kick", fontSize = 13.sp, color = WarningYellow, fontWeight = FontWeight.SemiBold)
+                            }
+
+                            Button(
+                                onClick = {
+                                    confirmAction = Triple("封禁玩家", "ban ${player.name}", "确定要永久封禁【${player.name}】吗？该操作将拉黑其玩家账号。")
+                                    selectedPlayer = null
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 10.dp)
+                            ) {
+                                Text("封禁 Ban", fontSize = 13.sp, color = ErrorRed, fontWeight = FontWeight.SemiBold)
+                            }
                         }
                     }
                 }
@@ -1189,12 +1234,14 @@ fun SettingsTabContent(
     state: ServerRuntimeState,
     onDeleted: () -> Unit
 ) {
+    val context = LocalContext.current
     val server = state.server
     var name by remember { mutableStateOf(server.name) }
     var host by remember { mutableStateOf(server.host) }
     var pingPort by remember { mutableStateOf(server.pingPort.toString()) }
     var rconPort by remember { mutableStateOf(server.rconPort.toString()) }
     var rconPass by remember { mutableStateOf(server.rconPassword) }
+    var notifyPlayerEvents by remember { mutableStateOf(server.notifyPlayerEvents) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     LazyColumn(
@@ -1297,6 +1344,42 @@ fun SettingsTabContent(
         }
 
         item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("玩家上下线通知", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                        Text(
+                            "开启后，当该服务器有玩家进入或离开时，后台将通过系统通知提醒",
+                            fontSize = 11.sp,
+                            color = TextTertiary,
+                            lineHeight = 15.sp
+                        )
+                    }
+                    Switch(
+                        checked = notifyPlayerEvents,
+                        onCheckedChange = { notifyPlayerEvents = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = McGreen,
+                            checkedTrackColor = McGreen.copy(alpha = 0.3f),
+                            uncheckedThumbColor = TextTertiary,
+                            uncheckedTrackColor = DarkCardBorder
+                        )
+                    )
+                }
+            }
+        }
+
+        item {
             Button(
                 onClick = {
                     val updated = server.copy(
@@ -1304,9 +1387,11 @@ fun SettingsTabContent(
                         host = host.trim(),
                         pingPort = pingPort.toIntOrNull() ?: 20000,
                         rconPort = rconPort.toIntOrNull() ?: 25574,
-                        rconPassword = rconPass.trim()
+                        rconPassword = rconPass.trim(),
+                        notifyPlayerEvents = notifyPlayerEvents
                     )
                     viewModel.updateServer(updated)
+                    android.widget.Toast.makeText(context, "配置修改已保存", android.widget.Toast.LENGTH_SHORT).show()
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = McGreen)

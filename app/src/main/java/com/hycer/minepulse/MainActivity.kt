@@ -37,6 +37,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         NotificationHelper.createNotificationChannel(this)
         checkAndRequestNotificationPermission()
+        com.hycer.minepulse.service.BackgroundMonitorReceiver.startMonitoring(this)
 
         setContent {
             MinePulseTheme {
